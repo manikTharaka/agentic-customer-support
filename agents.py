@@ -25,6 +25,7 @@ def get_supervisor_node(llm, members,system_prompt):
             {"role": "system", "content": system_prompt},
         ] + state["messages"]
         response = llm.with_structured_output(Router).invoke(messages)
+        
         goto = response["next"]
         if goto == "FINISH":
             goto = END
@@ -39,7 +40,7 @@ def get_review_node(llm):
     review_agent = create_react_agent(
         llm,
         tools=[],
-        state_modifier="You are a product review provider. Provide the product review for the requested product.  Use the following details as context:"
+        state_modifier="You are a product review provider. You are capable of providing user reviews,mattress reviews and feedback about mattresses. Use the following details as context:"
         + review_context_provider.get_context(),
     )
 
@@ -51,6 +52,7 @@ def get_review_node(llm):
                     HumanMessage(content=result["messages"][-1].content, name="review_provider")
                 ]
             },
+            # goto="supervisor",
         )
 
     return product_review_node
@@ -76,6 +78,7 @@ def get_product_details_node(llm):
                     )
                 ]
             },
+            # goto="supervisor",
         )
 
     return product_details_node
@@ -110,7 +113,6 @@ orders (
     You can add products to the products table and you can place orders by executing SQL queries to insert data into the orders table. The default status of the order is 'pending' 
     and the price is calculated based on the quantity and the product price, the product price can be retrieved from the products table.
     If you need more information about the product, you can route the conversation to the supervisor to obtain the necessary information.
-    If you have the final answer, add FINAL to the end of your message.
     """
     )
 
@@ -126,6 +128,7 @@ orders (
                     )
                 ]
             },
+            # goto="supervisor",
         )
 
     return order_details_node

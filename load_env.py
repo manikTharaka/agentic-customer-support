@@ -7,5 +7,9 @@ def load_env(fname=".env"):
         data = f.readlines()
     
     for l in data:
-        k, v = l.split("=")
+        if "=" in l:
+            k, v = l.split("=")
+        else:
+            print(f"Invalid line: {l}, ignoring")
+            continue
         os.environ[k] = v.strip()
