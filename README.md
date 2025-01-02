@@ -15,7 +15,7 @@ A multi agent system to provide customer support.
     $source .venv/bin/activate
     $pip install -r requirements.txt
     ```
-3. [Optional] Run create_db.py to create and insert the initial dataset
+3. [Optional] If you need to reset the database, delete the mattress.db file and run create_db.py to create and insert the initial dataset. 
 
     ```$python create_db.py```
 
