@@ -7,14 +7,18 @@ from typing import Literal
 from tools import orders_tool, orders_insert_tool
 from langchain_core.messages import HumanMessage
 from langgraph.graph import StateGraph, START, END
+from typing_extensions import TypedDict
 
 
-class Router(TypedDict):
-    """Worker to route to next. If no workers needed, route to FINISH."""
 
-    next: Literal[*options]
 
 def get_supervisor_node(llm, members,system_prompt):
+    options = members + ["FINISH"]
+    
+    class Router(TypedDict):
+        """Worker to route to next. If no workers needed, route to FINISH."""
+
+        next: Literal[*options]
 
     def supervisor_node(state: MessagesState) -> Command[Literal[*members, "__end__"]]:
         messages = [
@@ -26,6 +30,8 @@ def get_supervisor_node(llm, members,system_prompt):
             goto = END
 
         return Command(goto=goto)
+    
+    return supervisor_node
 
 def get_review_node(llm):
 
@@ -33,7 +39,7 @@ def get_review_node(llm):
     review_agent = create_react_agent(
         llm,
         tools=[],
-        state_modifier="You are a product review provider. Provide the product review for the requseted product.  Use the following details as context:"
+        state_modifier="You are a product review provider. Provide the product review for the requested product.  Use the following details as context:"
         + review_context_provider.get_context(),
     )
 
@@ -54,7 +60,9 @@ def get_product_details_node(llm):
     details_agent = create_react_agent(
         llm,
         tools=[],
-        state_modifier="You are a product details provider. Provide the product details for the requested product. Use the following details as context: "
+        state_modifier="""You are a product details provider. 
+        You are capable of providing product details such as price, product name and features. 
+        Use the following context to answer user queries: """ 
         + details_context_provider.get_context(),
     )
 
@@ -77,18 +85,32 @@ def get_orders_node(llm):
         llm,
         tools=[orders_tool,orders_insert_tool],
         state_modifier=""""You are a orders agent. You have access to a database of orders with the following schema:
-    orders (
-            id integer PRIMARY KEY,
-            product_name text NOT NULL,
-            quantity integer NOT NULL,
-            status text NOT NULL,
-            price real NOT NULL);
+    products (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    price REAL NOT NULL,
+    size TEXT NOT NULL,
+    height REAL NOT NULL,
+    type TEXT NOT NULL
+);
+
+orders (
+        id INTEGER PRIMARY KEY,
+        product_id INTEGER NOT NULL,
+        product_name TEXT NOT NULL,
+        quantity INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        price REAL NOT NULL,
+        FOREIGN KEY (product_id) REFERENCES products (id)
+);
 
     Answer user queries about orders.You can execute SQL queries to fetch data from the orders table.
     convert the data in the dictionary to a human-readable format and return it to the user.
 
-    You can place orders by executing SQL queries to insert data into the orders table. The default status of the order is 'pending' 
-    and the price is calculated based on the quantity and the product price, the product price can be retrieved from the product details.
+    You can add products to the products table and you can place orders by executing SQL queries to insert data into the orders table. The default status of the order is 'pending' 
+    and the price is calculated based on the quantity and the product price, the product price can be retrieved from the products table.
+    If you need more information about the product, you can route the conversation to the supervisor to obtain the necessary information.
+    If you have the final answer, add FINAL to the end of your message.
     """
     )
 
